@@ -283,8 +283,25 @@ public final class Estado {
      * Validar: sin duplicados, cada ficha en [0, NUM_CASILLAS).
      */
     private static long construirBitboard(int[] fichas) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - construirBitboard(int[])");
+        if (fichas == null || fichas.length != NUM_CASILLAS) {
+            throw new IllegalArgumentException(
+                    "Las fichas deben contener " + NUM_CASILLAS + " elementos");
+        }
+
+        boolean[] usada = new boolean[NUM_CASILLAS];
+        long resultado = 0L;
+        for (int i = 0; i < NUM_CASILLAS; i++) {
+            int ficha = fichas[i];
+            if (ficha < 0 || ficha >= NUM_CASILLAS) {
+                throw new IllegalArgumentException("Ficha fuera de rango: " + ficha);
+            }
+            if (usada[ficha]) {
+                throw new IllegalArgumentException("Ficha repetida: " + ficha);
+            }
+            usada[ficha] = true;
+            resultado |= ((long) ficha) << (i * BITS_POR_CASILLA);
+        }
+        return resultado;
     }
 
     /**
@@ -303,8 +320,26 @@ public final class Estado {
      *   rotada = ((extraida >>> 4) & mascaraFila) | ((extraida << 12) & mascaraTope)
      */
     private static long desplazarFila(long bitboard, int fila, boolean positivo) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - desplazarFila");
+        if (fila < 0 || fila >= LADO) {
+            throw new IllegalArgumentException("Fila fuera de rango: " + fila);
+        }
+
+        int desplazamiento = fila * BITS_POR_FILA_TABLERO;
+        long mascaraFila = MASCARA_FILA_TABLERO << desplazamiento;
+        long mascaraRetorno = MASCARA_FICHA << desplazamiento;
+        long extraida = bitboard & mascaraFila;
+        long rotada;
+
+        if (positivo) {
+            rotada = ((extraida << BITS_POR_CASILLA) & mascaraFila)
+                    | ((extraida >>> 12) & mascaraRetorno);
+        } else {
+            long mascaraTope = mascaraRetorno << 12;
+            rotada = ((extraida >>> BITS_POR_CASILLA) & mascaraFila)
+                    | ((extraida << 12) & mascaraTope);
+        }
+
+        return (bitboard & ~mascaraFila) | rotada;
     }
 
     /**
@@ -323,8 +358,26 @@ public final class Estado {
      *   rotada = ((extraida >>> 16) & mascaraColumna) | ((extraida << 48) & mascaraSuperior)
      */
     private static long desplazarColumna(long bitboard, int columna, boolean positivo) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - desplazarColumna");
+        if (columna < 0 || columna >= LADO) {
+            throw new IllegalArgumentException("Columna fuera de rango: " + columna);
+        }
+
+        int desplazamiento = columna * BITS_POR_CASILLA;
+        long mascaraColumna = MASCARA_COLUMNA_TABLERO << desplazamiento;
+        long mascaraRetorno = MASCARA_FICHA << desplazamiento;
+        long extraida = bitboard & mascaraColumna;
+        long rotada;
+
+        if (positivo) {
+            rotada = ((extraida << 16) & mascaraColumna)
+                    | ((extraida >>> 48) & mascaraRetorno);
+        } else {
+            long mascaraSuperior = 0xF000000000000000L >>> (12 - desplazamiento);
+            rotada = ((extraida >>> 16) & mascaraColumna)
+                    | ((extraida << 48) & mascaraSuperior);
+        }
+
+        return (bitboard & ~mascaraColumna) | rotada;
     }
 
     private static void comprobarCasilla(int casilla) {
