@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -156,8 +157,11 @@ public final class Estado {
      * Cada sucesor tiene: la accion aplicada, el estado resultante y costo 1.0f.
      */
     public List<Sucesor> sucesores() {
-        // TODO: iterar ACCIONES[], crear new Sucesor(accion, aplicar(accion), 1.0f)
-        throw new UnsupportedOperationException("TODO: Tarea 1 - sucesores()");
+        List<Sucesor> resultado = new ArrayList<>(NUM_ACCIONES);
+        for (int accion : ACCIONES) {
+            resultado.add(new Sucesor(accion, aplicar(accion), 1.0f));
+        }
+        return resultado;
     }
 
     // -------------------------------------------------------------------------
