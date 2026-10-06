@@ -240,14 +240,19 @@ public final class Estado {
 
     @Override
     public boolean equals(Object obj) {
-        // TODO: comparar bitboard con instanceof Estado
-        throw new UnsupportedOperationException("TODO: Tarea 1 - equals(Object)");
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Estado)) {
+            return false;
+        }
+        Estado otro = (Estado) obj;
+        return bitboard == otro.bitboard;
     }
 
     @Override
     public int hashCode() {
-        // TODO: Long.hashCode(bitboard)
-        throw new UnsupportedOperationException("TODO: Tarea 1 - hashCode()");
+        return Long.hashCode(bitboard);
     }
 
     /**
@@ -257,8 +262,15 @@ public final class Estado {
      */
     @Override
     public String toString() {
-        // TODO: StringBuilder, para cada casilla i → ficha(i) con cero inicial si < 10
-        throw new UnsupportedOperationException("TODO: Tarea 1 - toString()");
+        StringBuilder resultado = new StringBuilder(NUM_CASILLAS * 2);
+        for (int i = 0; i < NUM_CASILLAS; i++) {
+            int ficha = ficha(i);
+            if (ficha < 10) {
+                resultado.append('0');
+            }
+            resultado.append(ficha);
+        }
+        return resultado.toString();
     }
 
     // =========================================================================
