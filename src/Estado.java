@@ -176,8 +176,14 @@ public final class Estado {
      * 4. desplazarColumna(resultado_anterior, columna, positivo)
      */
     public Estado aplicar(int accion) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - aplicar(int)");
+        validarAccion(accion);
+        int fila = accion & MASCARA_FILA_ACCION;
+        int columna = (accion & MASCARA_COLUMNA_ACCION) >>> 2;
+        boolean positivo = (accion & BIT_SIGNO_ACCION) != 0;
+
+        long resultado = desplazarFila(bitboard, fila, positivo);
+        resultado = desplazarColumna(resultado, columna, positivo);
+        return new Estado(resultado);
     }
 
     // -------------------------------------------------------------------------
@@ -189,8 +195,11 @@ public final class Estado {
      * Formato: digito_fila + digito_columna + signo.
      */
     public static String accionComoTexto(int accion) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - accionComoTexto(int)");
+        validarAccion(accion);
+        int fila = accion & MASCARA_FILA_ACCION;
+        int columna = (accion & MASCARA_COLUMNA_ACCION) >>> 2;
+        char signo = (accion & BIT_SIGNO_ACCION) != 0 ? '+' : '-';
+        return "" + fila + columna + signo;
     }
 
     /**
@@ -199,8 +208,30 @@ public final class Estado {
      *          segundo = digito columna 0-3, tercero = '+' o '-'.
      */
     public static int accionDesde(String representacion) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - accionDesde(String)");
+        if (representacion == null || representacion.length() != 3) {
+            throw new IllegalArgumentException(
+                    "La accion debe tener el formato 'fc+' o 'fc-'");
+        }
+
+        char filaCaracter = representacion.charAt(0);
+        char columnaCaracter = representacion.charAt(1);
+        char signo = representacion.charAt(2);
+        if (!esDigito(filaCaracter) || !esDigito(columnaCaracter)) {
+            throw new IllegalArgumentException(
+                    "Fila y columna deben ser digitos: " + representacion);
+        }
+
+        int fila = filaCaracter - '0';
+        int columna = columnaCaracter - '0';
+        if (fila >= LADO || columna >= LADO || (signo != '+' && signo != '-')) {
+            throw new IllegalArgumentException("Accion no valida: " + representacion);
+        }
+
+        int codigo = fila | (columna << 2);
+        if (signo == '+') {
+            codigo |= BIT_SIGNO_ACCION;
+        }
+        return codigo;
     }
 
     // -------------------------------------------------------------------------
