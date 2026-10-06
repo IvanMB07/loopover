@@ -129,20 +129,22 @@ public final class Estado {
      * Operacion: (bitboard >>> (i * BITS_POR_CASILLA)) & MASCARA_FICHA
      */
     public int ficha(int casilla) {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - ficha(int)");
+        comprobarCasilla(casilla);
+        return (int) ((bitboard >>> (casilla * BITS_POR_CASILLA)) & MASCARA_FICHA);
     }
 
     /** Devuelve la ficha en la posicion (fila, columna). */
     public int ficha(int fila, int columna) {
-        // TODO: delegar a ficha(fila * LADO + columna)
-        throw new UnsupportedOperationException("TODO: Tarea 1 - ficha(int,int)");
+        if (fila < 0 || fila >= LADO || columna < 0 || columna >= LADO) {
+            throw new IllegalArgumentException(
+                    "Fila o columna fuera de rango: (" + fila + ", " + columna + ")");
+        }
+        return ficha(fila * LADO + columna);
     }
 
     /** Devuelve true si el bitboard es igual al estado resuelto. */
     public boolean esResuelto() {
-        // TODO
-        throw new UnsupportedOperationException("TODO: Tarea 1 - esResuelto()");
+        return bitboard == BITBOARD_RESUELTO;
     }
 
     // -------------------------------------------------------------------------
