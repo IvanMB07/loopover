@@ -240,4 +240,39 @@ public final class Frontera {
     private int nivel(int indice) {
         return 31 - Integer.numberOfLeadingZeros(indice + 1);
     }
+
+    /**
+     * Actualiza un estado que ya está en la frontera y reconstruye
+     * el heap mediante reinserción.
+     *
+     * @return false si el estado no estaba en la frontera.
+     */
+    public boolean actualizar(Nodo nodo) {
+        if (nodo == null) {
+            throw new IllegalArgumentException(
+                    "El nodo no puede ser null");
+        }
+
+        int indice = posiciones.getInt(nodo);
+
+        if (indice < 0) {
+            return false;
+        }
+
+        ObjectArrayList<Nodo> copia = new ObjectArrayList<>(nodos);
+        copia.set(indice, nodo);
+
+        nodos.clear();
+        posiciones.clear();
+
+        for (Nodo elemento : copia) {
+            int nuevoIndice = nodos.size();
+            nodos.add(elemento);
+            posiciones.put(elemento, nuevoIndice);
+            subir(nuevoIndice);
+        }
+
+        return true;
+    }
+
 }
