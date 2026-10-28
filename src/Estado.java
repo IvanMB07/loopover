@@ -14,7 +14,6 @@ import java.util.List;
  * Con '+' la fila se desplaza a la derecha y la columna hacia abajo; con '-',
  * hacia la izquierda y hacia arriba.
  *
- * TODO Tarea 1: implementar todos los metodos marcados con TODO.
  */
 public final class Estado {
 
@@ -29,14 +28,14 @@ public final class Estado {
     private static final long BITBOARD_RESUELTO = 0xFEDCBA98_76543210L;
 
     // Bits de la codificacion de accion
-    private static final int MASCARA_FILA_ACCION    = 0b00011;
+    private static final int MASCARA_FILA_ACCION = 0b00011;
     private static final int MASCARA_COLUMNA_ACCION = 0b01100;
-    private static final int BIT_SIGNO_ACCION       = 0b10000;
-    private static final int MASCARA_CODIGO_ACCION  = 0b11111;
+    private static final int BIT_SIGNO_ACCION = 0b10000;
+    private static final int MASCARA_CODIGO_ACCION = 0b11111;
 
     // Mascaras para operar filas y columnas del tablero
-    private static final int  BITS_POR_FILA_TABLERO  = LADO * BITS_POR_CASILLA; // 16
-    private static final long MASCARA_FILA_TABLERO   = 0xFFFFL;
+    private static final int BITS_POR_FILA_TABLERO = LADO * BITS_POR_CASILLA; // 16
+    private static final long MASCARA_FILA_TABLERO = 0xFFFFL;
     // Selecciona el nibble de columna 0 en cada una de las 4 filas
     private static final long MASCARA_COLUMNA_TABLERO = 0x000F000F000F000FL;
 
@@ -45,9 +44,9 @@ public final class Estado {
      * las 16 siguientes signo '-'. Ya esta inicializada; no modificar.
      *
      * Formato de cada codigo (5 bits):
-     *   bit  4  = signo (1 = '+')
-     *   bits 3-2 = columna (0..3)
-     *   bits 1-0 = fila    (0..3)
+     * bit 4 = signo (1 = '+')
+     * bits 3-2 = columna (0..3)
+     * bits 1-0 = fila (0..3)
      */
     public static final int[] ACCIONES = new int[NUM_ACCIONES];
 
@@ -55,9 +54,9 @@ public final class Estado {
         for (int f = 0; f < LADO; f++) {
             for (int c = 0; c < LADO; c++) {
                 int codigoBase = f | (c << 2);
-                int posicion   = f * LADO + c;
-                ACCIONES[posicion]               = codigoBase | BIT_SIGNO_ACCION; // signo '+'
-                ACCIONES[NUM_CASILLAS + posicion] = codigoBase;                   // signo '-'
+                int posicion = f * LADO + c;
+                ACCIONES[posicion] = codigoBase | BIT_SIGNO_ACCION; // signo '+'
+                ACCIONES[NUM_CASILLAS + posicion] = codigoBase; // signo '-'
             }
         }
     }
@@ -65,7 +64,7 @@ public final class Estado {
     private final long bitboard;
 
     // -------------------------------------------------------------------------
-    // Constructores — TODO Tarea 1
+    // Constructores
     // -------------------------------------------------------------------------
 
     /** Construye el estado directamente desde el bitboard (ya validado). */
@@ -116,7 +115,7 @@ public final class Estado {
     }
 
     // -------------------------------------------------------------------------
-    // Consultas — TODO Tarea 1
+    // Consultas
     // -------------------------------------------------------------------------
 
     /** Devuelve el bitboard interno (necesario para la tabla de visitados). */
@@ -149,7 +148,7 @@ public final class Estado {
     }
 
     // -------------------------------------------------------------------------
-    // Sucesores — TODO Tarea 1
+    // Sucesores
     // -------------------------------------------------------------------------
 
     /**
@@ -165,7 +164,7 @@ public final class Estado {
     }
 
     // -------------------------------------------------------------------------
-    // Aplicar acciones — TODO Tarea 1
+    // Aplicar acciones
     // -------------------------------------------------------------------------
 
     /**
@@ -187,7 +186,7 @@ public final class Estado {
     }
 
     // -------------------------------------------------------------------------
-    // Utilidades de acciones — TODO Tarea 1
+    // Utilidades de acciones
     // -------------------------------------------------------------------------
 
     /**
@@ -205,7 +204,7 @@ public final class Estado {
     /**
      * Parsea una accion en formato texto ("01+", "33-", etc.) y devuelve su codigo.
      * Validar: longitud = 3, primer caracter = digito fila 0-3,
-     *          segundo = digito columna 0-3, tercero = '+' o '-'.
+     * segundo = digito columna 0-3, tercero = '+' o '-'.
      */
     public static int accionDesde(String representacion) {
         if (representacion == null || representacion.length() != 3) {
@@ -235,7 +234,7 @@ public final class Estado {
     }
 
     // -------------------------------------------------------------------------
-    // equals, hashCode, toString — TODO Tarea 1
+    // equals, hashCode, toString
     // -------------------------------------------------------------------------
 
     @Override
@@ -274,12 +273,13 @@ public final class Estado {
     }
 
     // =========================================================================
-    // Metodos privados de ayuda — TODO Tarea 1
+    // Metodos privados de ayuda
     // =========================================================================
 
     /**
      * Construye el bitboard a partir del array de fichas.
-     * Para cada casilla i: resultado |= ((long) fichas[i]) << (i * BITS_POR_CASILLA)
+     * Para cada casilla i: resultado |= ((long) fichas[i]) << (i *
+     * BITS_POR_CASILLA)
      * Validar: sin duplicados, cada ficha en [0, NUM_CASILLAS).
      */
     private static long construirBitboard(int[] fichas) {
@@ -305,19 +305,21 @@ public final class Estado {
     }
 
     /**
-     * Desplaza la fila indicada del bitboard una posicion a la derecha (positivo=true)
+     * Desplaza la fila indicada del bitboard una posicion a la derecha
+     * (positivo=true)
      * o a la izquierda (positivo=false), con retorno circular.
      *
      * La fila ocupa 16 bits a partir del bit (fila * 16).
-     * Mascara de la fila:    MASCARA_FILA_TABLERO << (fila * 16)
+     * Mascara de la fila: MASCARA_FILA_TABLERO << (fila * 16)
      * Mascara del nibble de retorno: MASCARA_FICHA << (fila * 16)
      *
      * Desplazamiento derecha (positivo):
-     *   rotada = ((extraida << 4) & mascaraFila) | ((extraida >>> 12) & mascaraRetorno)
+     * rotada = ((extraida << 4) & mascaraFila) | ((extraida >>> 12) &
+     * mascaraRetorno)
      *
      * Desplazamiento izquierda (negativo):
-     *   mascaraTope = mascaraRetorno << 12
-     *   rotada = ((extraida >>> 4) & mascaraFila) | ((extraida << 12) & mascaraTope)
+     * mascaraTope = mascaraRetorno << 12
+     * rotada = ((extraida >>> 4) & mascaraFila) | ((extraida << 12) & mascaraTope)
      */
     private static long desplazarFila(long bitboard, int fila, boolean positivo) {
         if (fila < 0 || fila >= LADO) {
@@ -343,19 +345,23 @@ public final class Estado {
     }
 
     /**
-     * Desplaza la columna indicada del bitboard una posicion hacia abajo (positivo=true)
+     * Desplaza la columna indicada del bitboard una posicion hacia abajo
+     * (positivo=true)
      * o hacia arriba (positivo=false), con retorno circular.
      *
      * La columna ocupa 4 nibbles separados 16 bits entre si.
-     * Mascara de la columna: MASCARA_COLUMNA_TABLERO << (columna * BITS_POR_CASILLA)
+     * Mascara de la columna: MASCARA_COLUMNA_TABLERO << (columna *
+     * BITS_POR_CASILLA)
      * Mascara del nibble de retorno: MASCARA_FICHA << (columna * BITS_POR_CASILLA)
      *
      * Desplazamiento abajo (positivo):
-     *   rotada = ((extraida << 16) & mascaraColumna) | ((extraida >>> 48) & mascaraRetorno)
+     * rotada = ((extraida << 16) & mascaraColumna) | ((extraida >>> 48) &
+     * mascaraRetorno)
      *
      * Desplazamiento arriba (negativo):
-     *   mascaraSuperior = 0xF000000000000000L >>> (12 - columna * 4)
-     *   rotada = ((extraida >>> 16) & mascaraColumna) | ((extraida << 48) & mascaraSuperior)
+     * mascaraSuperior = 0xF000000000000000L >>> (12 - columna * 4)
+     * rotada = ((extraida >>> 16) & mascaraColumna) | ((extraida << 48) &
+     * mascaraSuperior)
      */
     private static long desplazarColumna(long bitboard, int columna, boolean positivo) {
         if (columna < 0 || columna >= LADO) {
