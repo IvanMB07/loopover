@@ -1,8 +1,25 @@
-/** Tabla de estados visitados. TODO: implementar en Tarea 2. */
+
+import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+
+/** Tabla de estados visitados. */
 public final class Visitados {
 
-    public Visitados() {}
+    private final Long2FloatOpenHashMap estados;
 
-    public boolean registrarSiMejor(long estado, float valor) { throw new UnsupportedOperationException("TODO: Tarea 2"); }
-    public int tamano() { throw new UnsupportedOperationException("TODO: Tarea 2"); }
+    public Visitados() {
+        this.estados = new Long2FloatOpenHashMap();
+    }
+
+    public boolean registrarSiMejor(long estado, float valor) {
+        if (!estados.containsKey(estado) || valor < estados.get(estado)) {
+            estados.put(estado, valor);
+            return true;
+        }
+
+        return false;
+    }
+
+    public int tamano() {
+        return estados.size();
+    }
 }
