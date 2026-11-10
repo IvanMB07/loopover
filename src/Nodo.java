@@ -1,220 +1,295 @@
+import java.util.Collections;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 
 /**
- * Nodo del arbol de busqueda.
+ * Nodo del arbol de busqueda sobre el espacio de estados del puzzle Loopover.
+ *
+ * Cada nodo contiene un identificador unico creciente asignado al crearse, el
+ * estado alcanzado, una referencia al nodo padre, el indice de la accion
+ * aplicada al padre para generar este nodo, la profundidad (acciones desde la
+ * raiz), el costo acumulado del camino y el valor asignado por la estrategia de
+ * busqueda.
+ *
+ * La accion de un nodo se identifica por su indice 0..31 en Estado.ACCIONES,
+ * no por su codigo de 5 bits: el indice 0 es "00+", el 1 es "01+", el 4 es
+ * "10+", el 16 es "00-" y el 31 es "33-". El codigo de la accion i-ésima se
+ * obtiene leyendo Estado.ACCIONES[i].
+ *
+ * La raiz se crea a partir de un estado sin padre ni accion. Un nodo hijo se
+ * crea a partir de su padre, el indice de una accion y el costo de esa accion.
+ *
  */
 public final class Nodo implements Comparable<Nodo> {
 
-    private final Estado estado;
-    private final Nodo padre;
-    private final int accion;
-    private final int profundidad;
-    private final float costoAcumulado;
+    private static final int SIN_ACCION = -1;
 
+    // El contador y el identificador son long: un int se desbordaria a los 2^31
+    // nodos y los ids negativos alterarian el desempate de compareTo, que asume
+    // que un nodo creado despues tiene un id mayor.
+    private static long siguienteId = 0L;
+
+    private final long id;
+    private final long bitboard; // el estado se guarda como bitboard, no como objeto
+    private final Nodo padre;
+    private final int indiceAccion; // indice 0..31 de la accion en Estado.ACCIONES
+    private final int profundidad;
+    private final int costoAcumulado;
     private int heuristica;
     private int valor;
-    private int hijosPendientes;
+    // Para SMA* (Tarea 3):
+    private int hijosPendientes; // mascara de 32 bits, uno por accion; bit i a 1 =
+                                 // hijo pendiente de generar o de reconstruir
+    private int hijosVivos; // cuantos de esos 32 hijos estan ahora en el arbol
     private boolean expandido;
-    private boolean reexpandible;
 
     /**
-     * Crea la raiz del arbol.
+     * Constructor de la raiz: nodo sin padre ni accion.
+     * - id = siguienteId++
+     * - profundidad = 0, costoAcumulado = 0
+     * - hijosPendientes = los 32 bits a 1, hijosVivos = 0, expandido = false
      */
     public Nodo(Estado estado) {
         if (estado == null) {
-            throw new IllegalArgumentException("El estado no puede ser null");
+            throw new IllegalArgumentException("El estado no puede ser nulo");
         }
 
-        this.estado = estado;
+        this.id = siguienteId++;
+        this.bitboard = estado.bitboard();
         this.padre = null;
-        this.accion = -1;
+        this.indiceAccion = SIN_ACCION;
         this.profundidad = 0;
-        this.costoAcumulado = 0.0f;
+        this.costoAcumulado = 0;
         this.heuristica = 0;
         this.valor = 0;
     }
 
     /**
-     * Crea un nodo hijo con coste de accion 1.
+     * Constructor de nodo hijo con costo de accion 1 (costo por defecto).
+     * Delega en Nodo(padre, indiceAccion, 1).
      */
-    public Nodo(Nodo padre, int accion) {
-        this(padre, accion, 1.0f);
+    public Nodo(Nodo padre, int indiceAccion) {
+        this(padre, indiceAccion, 1);
     }
 
     /**
-     * Crea un nodo hijo con el coste indicado.
+     * Constructor de nodo hijo con costo de accion explicito.
+     * - validar el indice (0..31)
+     * - estado = padre.estado.aplicar(Estado.ACCIONES[indiceAccion])
+     * - profundidad = padre.profundidad + 1
+     * - costoAcumulado = padre.costoAcumulado + costoAccion
+     * - hijosPendientes = los 32 bits a 1, hijosVivos = 0, expandido = false
      */
-    public Nodo(Nodo padre, int accion, float costoAccion) {
+    public Nodo(Nodo padre, int indiceAccion, int costoAccion) {
         if (padre == null) {
-            throw new IllegalArgumentException("El padre no puede ser null");
-        }
-        if (costoAccion < 0.0f || !Float.isFinite(costoAccion)) {
-            throw new IllegalArgumentException("El coste de la accion no es valido");
+            throw new IllegalArgumentException("El padre no puede ser nulo");
         }
 
+        validarIndice(indiceAccion);
+
+        this.id = siguienteId++;
         this.padre = padre;
-        this.accion = accion;
-        this.estado = padre.estado.aplicar(accion);
+        this.indiceAccion = indiceAccion;
+
+        Estado nuevoEstado = new Estado(padre.bitboard)
+                .aplicar(Estado.ACCIONES[indiceAccion]);
+
+        this.bitboard = nuevoEstado.bitboard();
         this.profundidad = padre.profundidad + 1;
         this.costoAcumulado = padre.costoAcumulado + costoAccion;
         this.heuristica = 0;
-        this.valor = (int) this.costoAcumulado;
+        this.valor = 0;
     }
 
     public Estado estado() {
-        return estado;
+        return new Estado(bitboard);
     }
 
     public Nodo padre() {
         return padre;
     }
 
+    /** Indice 0..31 de la accion aplicada al padre en Estado.ACCIONES. */
     public int accion() {
-        return accion;
+        return indiceAccion;
     }
 
     public int profundidad() {
         return profundidad;
     }
 
-    public float costoAcumulado() {
+    public int costoAcumulado() {
         return costoAcumulado;
     }
 
-    public void fijarHeuristica(int h) {
-        this.heuristica = h;
+    public void fijarHeuristica(int heuristica) {
+        this.heuristica = heuristica;
     }
 
     public int valor() {
         return valor;
     }
 
-    public void fijarValor(int v) {
-        this.valor = v;
+    public void fijarValor(int valor) {
+        this.valor = valor;
     }
 
-    public void restarHijo() {
-        if (hijosPendientes > 0) {
-            hijosPendientes--;
-        }
+    // Gestion de hijos para SMA* — TODO: Tarea 3
+    public void marcarHijoGenerado(int indiceAccion) {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
-    public void reexpandir() {
-        this.expandido = false;
-        this.reexpandible = true;
+    public void marcarHijoPodado(int indiceAccion) {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
+    }
+
+    public int mascaraHijosPendientes() {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
+    }
+
+    public boolean tieneHijosPendientes() {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
+    }
+
+    public boolean tieneHijosVivos() {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
     public void marcarExpandido() {
-        this.expandido = true;
-        this.reexpandible = false;
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
-    public boolean completado() {
-        return expandido && hijosPendientes == 0;
+    public boolean necesitaReexpansion() {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
     public boolean agotado() {
-        return expandido && hijosPendientes == 0 && !reexpandible;
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
-    public void respaldarMinimo(int v) {
-        this.valor = Math.min(this.valor, v);
+    public void respaldarMinimo(int valor) {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
 
     public boolean esRaiz() {
         return padre == null;
     }
 
+    /**
+     * Orden por valor ascendente; en caso de empate, por id ascendente (FIFO).
+     * Integer.compare(this.valor, otro.valor); si == 0 → Long.compare(id, otro.id)
+     * (el id es long para no desbordar en busquedas largas)
+     */
     @Override
     public int compareTo(Nodo otro) {
-        int comparacion = Integer.compare(this.valor, otro.valor);
+        int comparacionValor = Integer.compare(this.valor, otro.valor);
 
-        if (comparacion != 0) {
-            return comparacion;
+        if (comparacionValor != 0) {
+            return comparacionValor;
         }
 
-        comparacion = Float.compare(this.costoAcumulado, otro.costoAcumulado);
-
-        if (comparacion != 0) {
-            return comparacion;
-        }
-
-        comparacion = Integer.compare(this.profundidad, otro.profundidad);
-
-        if (comparacion != 0) {
-            return comparacion;
-        }
-
-        return 0;
+        return Long.compare(this.id, otro.id);
     }
 
     /**
-     * Devuelve el camino desde la raiz hasta este nodo.
+     * Recorre la cadena de padres desde este nodo hasta la raiz y devuelve
+     * la lista en orden raiz → este nodo.
      */
     public ObjectList<Nodo> camino() {
         ObjectList<Nodo> resultado = new ObjectArrayList<>();
 
-        for (Nodo actual = this; actual != null; actual = actual.padre) {
+        Nodo actual = this;
+
+        while (actual != null) {
             resultado.add(actual);
+            actual = actual.padre;
         }
 
-        for (int i = 0, j = resultado.size() - 1; i < j; i++, j--) {
-            Nodo temporal = resultado.get(i);
-            resultado.set(i, resultado.get(j));
-            resultado.set(j, temporal);
-        }
+        Collections.reverse(resultado);
 
         return resultado;
     }
 
-    /**
-     * Representa las acciones del camino desde la raiz hasta la solucion.
-     */
     public String caminoComoTexto() {
-        if (esRaiz()) {
-            return "(ya resuelto)";
-        }
-
+        ObjectList<Nodo> camino = camino();
         StringBuilder resultado = new StringBuilder();
 
-        for (Nodo nodo : camino()) {
-            if (nodo.esRaiz()) {
-                continue;
-            }
+        for (int i = 1; i < camino.size(); i++) {
+            Nodo nodo = camino.get(i);
 
             if (resultado.length() > 0) {
-                resultado.append(' ');
+                resultado.append(" ");
             }
 
-            resultado.append(Estado.accionComoTexto(nodo.accion));
+            resultado.append(
+                    Estado.accionComoTexto(Estado.ACCIONES[nodo.indiceAccion]));
         }
 
         return resultado.toString();
     }
 
+    /**
+     * Dos nodos son iguales si coinciden en valor e identificador, la misma
+     * condicion que la de compareTo() para valer 0. El guion detalla el contrato.
+     */
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
+    public boolean equals(Object obj) {
+        if (this == obj) {
             return true;
         }
-        if (!(o instanceof Nodo otro)) {
+
+        if (!(obj instanceof Nodo)) {
             return false;
         }
-        return estado.equals(otro.estado);
+
+        Nodo otro = (Nodo) obj;
+
+        return this.id == otro.id && this.valor == otro.valor;
     }
 
+    /** Coherente con equals(). */
     @Override
     public int hashCode() {
-        return estado.hashCode();
+        int resultado = Long.hashCode(id);
+        resultado = 31 * resultado + Integer.hashCode(valor);
+        return resultado;
     }
 
+    /**
+     * Representacion textual del nodo, con el formato
+     * "[id,padre,accion,estado,profundidad,coste,heuristica,valor]"; en la raiz,
+     * el padre y la accion se sustituyen por "raiz" y "NoAccion".
+     *
+     * Se entrega ya implementado: el corrector compara la salida del programa
+     * con la del jar de referencia, asi que este formato no puede variar (en los
+     * hijos se ve el texto de la accion, no su indice).
+     */
     @Override
     public String toString() {
-        return "Nodo{estado=" + estado
-                + ", profundidad=" + profundidad
-                + ", costoAcumulado=" + costoAcumulado
-                + ", valor=" + valor + '}';
+        StringBuilder sb = new StringBuilder("[").append(id);
+        if (padre == null) {
+            sb.append(",raiz,NoAccion");
+        } else {
+            sb.append(",").append(padre.id);
+            sb.append(",").append(Estado.accionComoTexto(Estado.ACCIONES[indiceAccion]));
+        }
+        sb.append(",").append(new Estado(bitboard))
+                .append(",").append(profundidad)
+                .append(",").append(costoAcumulado)
+                .append(",").append(heuristica)
+                .append(",").append(valor)
+                .append("]");
+        return sb.toString();
+    }
+
+    /**
+     * Comprueba que el indice de accion esta en 0..Estado.NUM_ACCIONES - 1.
+     */
+    private static void validarIndice(int indiceAccion) {
+        if (indiceAccion < 0 || indiceAccion >= Estado.NUM_ACCIONES) {
+            throw new IllegalArgumentException(
+                    "Indice de accion fuera de rango: " + indiceAccion);
+        }
     }
 }

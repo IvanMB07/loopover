@@ -1,278 +1,89 @@
+import com.google.common.collect.MinMaxPriorityQueue;
 
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-
-/** Frontera de la busqueda (heap min-max). */
+/**
+ * Frontera de la busqueda, implementada como un heap minimax usando
+ * MinMaxPriorityQueue de Guava.
+ *
+ * La cola minimax consulta el minimo y el maximo en O(1) (peekFirst/peekLast)
+ * e inserta y extrae en O(log n) (add/pollFirst/pollLast).
+ *
+ * TODO Tarea 3: implementar eliminarPeorHojaNoRaiz() para SMA*.
+ */
 public final class Frontera {
 
-    private final ObjectArrayList<Nodo> nodos;
-    private final Object2IntOpenHashMap<Nodo> posiciones;
     private final int maxNodos;
+    private final MinMaxPriorityQueue<Nodo> monticulo;
 
+    /**
+     * Inicializar el MinMaxPriorityQueue acotando la reserva inicial.
+     * Patron: MinMaxPriorityQueue
+     * .expectedSize(Math.min(maxNodos, 65536))
+     * .create()
+     *
+     * Ojo: expectedSize(n) NO es solo una pista, reserva de golpe un Object[n].
+     * La busqueda usa 10 000 000 como limite cuando no se da -c, asi que pasarle
+     * maxNodos tal cual reservaria ~40 MB antes de expandir un solo nodo. El tope
+     * no limita la poblacion: el heap crece solo si hace falta.
+     */
     public Frontera(int maxNodos) {
-        if (maxNodos <= 0) {
-            throw new IllegalArgumentException(
-                    "El maximo de nodos debe ser positivo");
-        }
-
+        if (maxNodos < 1)
+            throw new IllegalArgumentException("maxNodos debe ser >= 1: " + maxNodos);
         this.maxNodos = maxNodos;
-        this.nodos = new ObjectArrayList<>();
-        this.posiciones = new Object2IntOpenHashMap<>();
-        this.posiciones.defaultReturnValue(-1);
+        this.monticulo = MinMaxPriorityQueue
+                .expectedSize(Math.min(maxNodos, 65536))
+                .create();
     }
 
+    /** Numero de nodos actualmente en la frontera. */
     public int tamano() {
-        return nodos.size();
+        return monticulo.size();
     }
 
     public boolean vacia() {
-        return nodos.isEmpty();
+        return monticulo.isEmpty();
     }
 
     public boolean contiene(Nodo nodo) {
-        return posiciones.containsKey(nodo);
+        for (Nodo actual : monticulo) {
+            if (actual == nodo) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void insertar(Nodo nodo) {
-        if (nodo == null) {
-            throw new IllegalArgumentException("El nodo no puede ser null");
-        }
-        if (nodos.size() >= maxNodos) {
+        if (monticulo.size() >= maxNodos) {
             throw new IllegalStateException(
-                    "La frontera ha alcanzado su capacidad maxima");
-        }
-        if (contiene(nodo)) {
-            return;
+                    "La frontera ha alcanzado su capacidad maxima: " + maxNodos);
         }
 
-        int indice = nodos.size();
-        nodos.add(nodo);
-        posiciones.put(nodo, indice);
-        subir(indice);
+        monticulo.add(nodo);
     }
 
+    /** Extrae y devuelve el nodo de menor valor (el mas prometedor). */
     public Nodo extraerMejor() {
-        if (nodos.isEmpty()) {
-            return null;
+        if (monticulo.isEmpty()) {
+            throw new IllegalStateException("La frontera esta vacia");
         }
 
-        Nodo mejor = nodos.get(0);
-        int ultimoIndice = nodos.size() - 1;
-        Nodo ultimo = nodos.remove(ultimoIndice);
-        posiciones.removeInt(mejor);
-
-        if (!nodos.isEmpty()) {
-            nodos.set(0, ultimo);
-            posiciones.put(ultimo, 0);
-            bajar(0);
-        }
-
-        return mejor;
-    }
-
-    public Nodo eliminarPeorHojaNoRaiz() {
-        throw new UnsupportedOperationException("TODO: Tarea 3");
-    }
-
-    private void subir(int indice) {
-        int nivel = nivel(indice);
-
-        if (nivel % 2 == 0) {
-            int padre = padre(indice);
-
-            if (padre >= 0 && comparar(indice, padre) > 0) {
-                intercambiar(indice, padre);
-                subirMax(padre);
-            } else {
-                subirMin(indice);
-            }
-        } else {
-            int padre = padre(indice);
-
-            if (padre >= 0 && comparar(indice, padre) < 0) {
-                intercambiar(indice, padre);
-                subirMin(padre);
-            } else {
-                subirMax(indice);
-            }
-        }
-    }
-
-    private void subirMin(int indice) {
-        while (abuelo(indice) >= 0) {
-            int abuelo = abuelo(indice);
-
-            if (comparar(indice, abuelo) >= 0) {
-                break;
-            }
-
-            intercambiar(indice, abuelo);
-            indice = abuelo;
-        }
-    }
-
-    private void subirMax(int indice) {
-        while (abuelo(indice) >= 0) {
-            int abuelo = abuelo(indice);
-
-            if (comparar(indice, abuelo) <= 0) {
-                break;
-            }
-
-            intercambiar(indice, abuelo);
-            indice = abuelo;
-        }
-    }
-
-    private void bajar(int indice) {
-        if (nivel(indice) % 2 == 0) {
-            bajarMin(indice);
-        } else {
-            bajarMax(indice);
-        }
-    }
-
-    private void bajarMin(int indice) {
-        while (true) {
-            int candidato = descendienteExtremo(indice, true);
-
-            if (candidato < 0 || comparar(candidato, indice) >= 0) {
-                return;
-            }
-
-            if (padre(candidato) != indice) {
-                intercambiar(candidato, indice);
-
-                int padreCandidato = padre(candidato);
-                if (comparar(candidato, padreCandidato) > 0) {
-                    intercambiar(candidato, padreCandidato);
-                }
-
-                indice = candidato;
-            } else {
-                intercambiar(candidato, indice);
-                return;
-            }
-        }
-    }
-
-    private void bajarMax(int indice) {
-        while (true) {
-            int candidato = descendienteExtremo(indice, false);
-
-            if (candidato < 0 || comparar(candidato, indice) <= 0) {
-                return;
-            }
-
-            if (padre(candidato) != indice) {
-                intercambiar(candidato, indice);
-
-                int padreCandidato = padre(candidato);
-                if (comparar(candidato, padreCandidato) < 0) {
-                    intercambiar(candidato, padreCandidato);
-                }
-
-                indice = candidato;
-            } else {
-                intercambiar(candidato, indice);
-                return;
-            }
-        }
-    }
-
-    private int descendienteExtremo(int indice, boolean minimo) {
-        int mejorIndice = -1;
-        int inicio = indice * 2 + 1;
-        int fin = Math.min(nodos.size() - 1, indice * 2 + 2);
-
-        for (int i = inicio; i <= fin; i++) {
-            if (mejorIndice < 0
-                    || (minimo
-                            ? comparar(i, mejorIndice) < 0
-                            : comparar(i, mejorIndice) > 0)) {
-                mejorIndice = i;
-            }
-        }
-
-        int nietoInicio = inicio * 2 + 1;
-        int nietoFin = Math.min(nodos.size() - 1, inicio * 2 + 4);
-
-        for (int i = nietoInicio; i <= nietoFin; i++) {
-            if (mejorIndice < 0
-                    || (minimo
-                            ? comparar(i, mejorIndice) < 0
-                            : comparar(i, mejorIndice) > 0)) {
-                mejorIndice = i;
-            }
-        }
-
-        return mejorIndice;
-    }
-
-    private int comparar(int i, int j) {
-        return nodos.get(i).compareTo(nodos.get(j));
-    }
-
-    private void intercambiar(int i, int j) {
-        if (i == j) {
-            return;
-        }
-
-        Nodo primero = nodos.get(i);
-        Nodo segundo = nodos.get(j);
-
-        nodos.set(i, segundo);
-        nodos.set(j, primero);
-
-        posiciones.put(segundo, i);
-        posiciones.put(primero, j);
-    }
-
-    private int padre(int indice) {
-        return indice == 0 ? -1 : (indice - 1) / 2;
-    }
-
-    private int abuelo(int indice) {
-        int p = padre(indice);
-        return p < 0 ? -1 : padre(p);
-    }
-
-    private int nivel(int indice) {
-        return 31 - Integer.numberOfLeadingZeros(indice + 1);
+        return monticulo.pollFirst();
     }
 
     /**
-     * Actualiza un estado que ya está en la frontera y reconstruye
-     * el heap mediante reinserción.
+     * Para SMA*: itera la cola buscando el nodo de mayor valor que no sea la raiz
+     * y que no tenga hijos vivos (es decir, que sea una hoja de verdad). Lo elimina
+     * de la cola y lo devuelve, o devuelve null si solo quedan la raiz y nodos
+     * internos.
      *
-     * @return false si el estado no estaba en la frontera.
+     * El filtro por hijos vivos es lo que hace que la expulsion no destruya una
+     * rama: un nodo con descendencia en el arbol sigue siendo un nodo interno,
+     * aunque su valor sea el mas alto, y perderlo dejaria subarboles huerfanos.
+     *
+     * TODO: implementar en Tarea 3.
      */
-    public boolean actualizar(Nodo nodo) {
-        if (nodo == null) {
-            throw new IllegalArgumentException(
-                    "El nodo no puede ser null");
-        }
-
-        int indice = posiciones.getInt(nodo);
-
-        if (indice < 0) {
-            return false;
-        }
-
-        ObjectArrayList<Nodo> copia = new ObjectArrayList<>(nodos);
-        copia.set(indice, nodo);
-
-        nodos.clear();
-        posiciones.clear();
-
-        for (Nodo elemento : copia) {
-            int nuevoIndice = nodos.size();
-            nodos.add(elemento);
-            posiciones.put(elemento, nuevoIndice);
-            subir(nuevoIndice);
-        }
-
-        return true;
+    public Nodo eliminarPeorHojaNoRaiz() {
+        throw new UnsupportedOperationException("TODO: Tarea 3");
     }
-
 }

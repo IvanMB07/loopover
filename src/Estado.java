@@ -158,7 +158,7 @@ public final class Estado {
     public List<Sucesor> sucesores() {
         List<Sucesor> resultado = new ArrayList<>(NUM_ACCIONES);
         for (int accion : ACCIONES) {
-            resultado.add(new Sucesor(accion, aplicar(accion), 1.0f));
+            resultado.add(new Sucesor(accion, aplicar(accion), 1));
         }
         return resultado;
     }
